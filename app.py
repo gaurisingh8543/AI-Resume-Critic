@@ -3,18 +3,36 @@ load_dotenv()
 import streamlit as st
 import os
 from PyPDF2 import PdfReader
-import google.generativeai as genai
-import time
+from google import genai
 
-# Configure Gemini AI
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+
+GEMINI_MODEL = "gemini-3.6-flash"
 
 class ATSAnalyzer:
     @staticmethod
     def get_gemini_response(input_prompt, pdf_text, job_description):
         try:
-            model = genai.GenerativeModel('gemini-2.0-flash-exp')
-            response = model.generate_content([input_prompt, pdf_text, job_description])
+            api_key = os.getenv("GOOGLE_API_KEY")
+            if not api_key or api_key == "your-gemini-api-key-here":
+                st.error("Add a valid GOOGLE_API_KEY to your .env file before analyzing a resume.")
+                return None
+
+            client = genai.Client(api_key=api_key)
+            prompt = f"""{input_prompt}
+
+Job description:
+{job_description}
+
+Resume text:
+{pdf_text}
+"""
+            response = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=prompt,
+            )
+            if not response.text:
+                st.error("Gemini returned an empty response. Please try again.")
+                return None
             return response.text
         except Exception as e:
             st.error(f"Error generating response: {str(e)}")
